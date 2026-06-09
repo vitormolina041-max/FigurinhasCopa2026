@@ -1,0 +1,273 @@
+import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { Download, Edit3, FileSpreadsheet, Plus, Search, Trash2, Upload } from "lucide-react";
+import type { Figurinha } from "../types/Figurinha";
+import { excelService } from "../services/excelService";
+import { normalizeFigurinha } from "../services/storageService";
+import { formatCurrency } from "../utils/whatsapp";
+
+type AdminFigurinhasProps = {
+  figurinhas: Figurinha[];
+  setFigurinhas: React.Dispatch<React.SetStateAction<Figurinha[]>>;
+  onMessage: (message: string) => void;
+};
+
+type FormState = Omit<Figurinha, "id">;
+
+const emptyForm: FormState = {
+  numero: "",
+  nome: "",
+  pais: "",
+  categoria: "",
+  preco: 0,
+  quantidade: 0,
+  imagemUrl: "",
+  disponivel: true,
+};
+
+export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminFigurinhasProps) {
+  const [form, setForm] = useState<FormState>(emptyForm);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [paisFilter, setPaisFilter] = useState("");
+
+  const paises = useMemo(
+    () => Array.from(new Set(figurinhas.map((item) => item.pais))).sort((a, b) => a.localeCompare(b)),
+    [figurinhas],
+  );
+
+  const filteredFigurinhas = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return figurinhas.filter((figurinha) => {
+      const matchesQuery =
+        !normalized ||
+        figurinha.nome.toLowerCase().includes(normalized) ||
+        figurinha.numero.toLowerCase().includes(normalized);
+      return matchesQuery && (!paisFilter || figurinha.pais === paisFilter);
+    });
+  }, [figurinhas, paisFilter, query]);
+
+  function updateForm<K extends keyof FormState>(field: K, value: FormState[K]) {
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function resetForm() {
+    setForm(emptyForm);
+    setEditingId(null);
+  }
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+
+    if (!form.numero.trim() || !form.nome.trim() || !form.pais.trim() || !form.categoria.trim()) {
+      onMessage("Preencha número, nome, país e categoria.");
+      return;
+    }
+
+    const normalizedForm = normalizeFigurinha({
+      ...form,
+      id: editingId ?? crypto.randomUUID(),
+      numero: form.numero.trim(),
+      nome: form.nome.trim(),
+      pais: form.pais.trim(),
+      categoria: form.categoria.trim(),
+      imagemUrl: form.imagemUrl?.trim(),
+      preco: Number(form.preco),
+      quantidade: Number(form.quantidade),
+    });
+
+    if (editingId) {
+      setFigurinhas((current) =>
+        current.map((figurinha) => (figurinha.id === editingId ? normalizedForm : figurinha)),
+      );
+      onMessage("Figurinha atualizada.");
+    } else {
+      setFigurinhas((current) => [normalizedForm, ...current]);
+      onMessage("Figurinha cadastrada.");
+    }
+
+    resetForm();
+  }
+
+  function startEditing(figurinha: Figurinha) {
+    setEditingId(figurinha.id);
+    setForm({
+      numero: figurinha.numero,
+      nome: figurinha.nome,
+      pais: figurinha.pais,
+      categoria: figurinha.categoria,
+      preco: figurinha.preco,
+      quantidade: figurinha.quantidade,
+      imagemUrl: figurinha.imagemUrl ?? "",
+      disponivel: figurinha.quantidade > 0,
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function deleteFigurinha(figurinha: Figurinha) {
+    if (!window.confirm(`Excluir a figurinha ${figurinha.numero} - ${figurinha.nome}?`)) return;
+
+    setFigurinhas((current) => current.filter((item) => item.id !== figurinha.id));
+    onMessage("Figurinha excluída.");
+  }
+
+  async function importExcel(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const nextFigurinhas = await excelService.importFigurinhas(file, figurinhas);
+      setFigurinhas(nextFigurinhas);
+      onMessage("Planilha importada com sucesso.");
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Não foi possível importar a planilha.");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  return (
+    <>
+      <section className="admin-grid">
+        <form className="admin-card form-grid" onSubmit={handleSubmit}>
+          <h2>{editingId ? "Editar figurinha" : "Nova figurinha"}</h2>
+
+          <label>
+            Número
+            <input value={form.numero} onChange={(event) => updateForm("numero", event.target.value)} />
+          </label>
+          <label>
+            Nome
+            <input value={form.nome} onChange={(event) => updateForm("nome", event.target.value)} />
+          </label>
+          <label>
+            País
+            <input value={form.pais} onChange={(event) => updateForm("pais", event.target.value)} />
+          </label>
+          <label>
+            Categoria
+            <input value={form.categoria} onChange={(event) => updateForm("categoria", event.target.value)} />
+          </label>
+          <label>
+            Preço
+            <input
+              min="0"
+              step="0.01"
+              type="number"
+              value={form.preco}
+              onChange={(event) => updateForm("preco", Number(event.target.value))}
+            />
+          </label>
+          <label>
+            Quantidade
+            <input
+              min="0"
+              type="number"
+              value={form.quantidade}
+              onChange={(event) =>
+                setForm((current) => {
+                  const quantidade = Number(event.target.value);
+                  return { ...current, quantidade, disponivel: quantidade > 0 };
+                })
+              }
+            />
+          </label>
+          <label className="full-field">
+            URL da imagem
+            <input value={form.imagemUrl} onChange={(event) => updateForm("imagemUrl", event.target.value)} />
+          </label>
+          <label className="checkbox-field">
+            <input
+              checked={form.quantidade > 0 && form.disponivel}
+              disabled={form.quantidade === 0}
+              type="checkbox"
+              onChange={(event) => updateForm("disponivel", event.target.checked)}
+            />
+            Disponível
+          </label>
+
+          <div className="form-actions">
+            <button className="primary-button" type="submit">
+              <Plus size={18} aria-hidden="true" />
+              {editingId ? "Salvar" : "Cadastrar"}
+            </button>
+            {editingId ? (
+              <button className="secondary-button" onClick={resetForm} type="button">
+                Cancelar
+              </button>
+            ) : null}
+          </div>
+        </form>
+
+        <section className="admin-card">
+          <h2>Planilhas</h2>
+          <div className="backup-actions">
+            <button className="secondary-button" onClick={() => excelService.exportFigurinhas(figurinhas)} type="button">
+              <Download size={18} aria-hidden="true" />
+              Exportar Excel
+            </button>
+            <button className="secondary-button" onClick={() => excelService.downloadTemplate()} type="button">
+              <FileSpreadsheet size={18} aria-hidden="true" />
+              Baixar modelo
+            </button>
+            <label className="file-button">
+              <Upload size={18} aria-hidden="true" />
+              Importar Excel
+              <input accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" type="file" onChange={importExcel} />
+            </label>
+          </div>
+        </section>
+      </section>
+
+      <section className="admin-card">
+        <div className="admin-toolbar">
+          <label>
+            <Search size={17} aria-hidden="true" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Pesquisar por nome ou número"
+            />
+          </label>
+          <select value={paisFilter} onChange={(event) => setPaisFilter(event.target.value)}>
+            <option value="">Todos os países</option>
+            {paises.map((pais) => (
+              <option key={pais} value={pais}>
+                {pais}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {filteredFigurinhas.length === 0 ? (
+          <div className="empty-state">Nenhuma figurinha encontrada na administração.</div>
+        ) : (
+          <div className="admin-table">
+            {filteredFigurinhas.map((figurinha) => (
+              <article className="admin-row" key={figurinha.id}>
+                <div>
+                  <strong>
+                    {figurinha.numero} · {figurinha.nome}
+                  </strong>
+                  <span>
+                    {figurinha.pais} · {figurinha.categoria} · {formatCurrency(figurinha.preco)} · Estoque:{" "}
+                    {figurinha.quantidade} · {figurinha.quantidade > 0 ? "Disponível" : "Esgotada"}
+                  </span>
+                </div>
+                <div className="row-actions">
+                  <button className="secondary-button icon-text" onClick={() => startEditing(figurinha)} type="button">
+                    <Edit3 size={16} aria-hidden="true" />
+                    Editar
+                  </button>
+                  <button className="danger-button icon-text" onClick={() => deleteFigurinha(figurinha)} type="button">
+                    <Trash2 size={16} aria-hidden="true" />
+                    Excluir
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
