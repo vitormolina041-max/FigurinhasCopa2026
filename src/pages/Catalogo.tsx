@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { FiltrosCatalogo } from "../components/FiltrosCatalogo";
 import { FigurinhaCard } from "../components/FigurinhaCard";
 import type { AvailabilityFilter, Figurinha, SortKey } from "../types/Figurinha";
+import logoUrl from "./logo.png";
 
 type CatalogoProps = {
   figurinhas: Figurinha[];
@@ -61,10 +62,8 @@ export function Catalogo({ figurinhas, notice, onAddToCart }: CatalogoProps) {
             Busque por número, filtre por seleção e monte seu pedido com controle automático de estoque.
           </p>
         </div>
-        <div className="hero-ball" aria-hidden="true">
-          <span />
-          <span />
-          <span />
+        <div className="hero-logo">
+          <img src={logoUrl} alt="Logo Figurinhas da Copa" />
         </div>
       </section>
 
