@@ -936,6 +936,10 @@ select:focus {
   gap: 0.9rem;
 }
 
+.compact-country-groups .sticker-list {
+  padding: 0.85rem;
+}
+
 .country-group {
   overflow: hidden;
   background: rgba(18, 27, 35, 0.88);

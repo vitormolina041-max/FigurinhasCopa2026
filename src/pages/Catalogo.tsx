@@ -4,6 +4,7 @@ import { FiltrosCatalogo } from "../components/FiltrosCatalogo";
 import { FigurinhaCard } from "../components/FigurinhaCard";
 import { FigurinhaLista } from "../components/FigurinhaLista";
 import { GrupoPaisFigurinhas } from "../components/GrupoPaisFigurinhas";
+import { HeaderPais } from "../components/HeaderPais";
 import { SeletorVisualizacao, type CatalogViewMode } from "../components/SeletorVisualizacao";
 import type { AvailabilityFilter, Figurinha, SortKey } from "../types/Figurinha";
 import logoUrl from "./logo.png";
@@ -180,7 +181,9 @@ export function Catalogo({ figurinhas, notice, pendingStockIds, onAddToCart }: C
   }
 
   function toggleAllCountries() {
-    if (collapsedCountries.size === groupedFigurinhas.length) {
+    const allVisibleCountriesCollapsed = groupedFigurinhas.every(({ country }) => collapsedCountries.has(country));
+
+    if (allVisibleCountriesCollapsed) {
       setCollapsedCountries(new Set());
       return;
     }
@@ -195,11 +198,34 @@ export function Catalogo({ figurinhas, notice, pendingStockIds, onAddToCart }: C
 
     if (viewMode === "lista") {
       return (
-        <FigurinhaLista
-          figurinhas={filteredFigurinhas}
-          pendingStockIds={pendingStockIds}
-          onAddToCart={onAddToCart}
-        />
+        <div className="country-groups compact-country-groups">
+          {groupedFigurinhas.map(({ country, items }) => {
+            const isExpanded = !collapsedCountries.has(country);
+            const disponiveis = items.filter((figurinha) => figurinha.disponivel && figurinha.quantidade > 0).length;
+            const estoque = items.reduce((sum, figurinha) => sum + figurinha.quantidade, 0);
+
+            return (
+              <section className="country-group" key={country}>
+                <HeaderPais
+                  color={getCountryColor(country)}
+                  disponiveis={disponiveis}
+                  expanded={isExpanded}
+                  nome={country}
+                  onToggle={() => toggleCountry(country)}
+                  total={items.length}
+                  estoque={estoque}
+                />
+                {isExpanded ? (
+                  <FigurinhaLista
+                    figurinhas={items}
+                    pendingStockIds={pendingStockIds}
+                    onAddToCart={onAddToCart}
+                  />
+                ) : null}
+              </section>
+            );
+          })}
+        </div>
       );
     }
 
@@ -253,9 +279,11 @@ export function Catalogo({ figurinhas, notice, pendingStockIds, onAddToCart }: C
 
       <section className="catalog-controls">
         <SeletorVisualizacao mode={viewMode} onModeChange={setViewMode} />
-        {viewMode === "pais" && groupedFigurinhas.length > 0 ? (
+        {(viewMode === "pais" || viewMode === "lista") && groupedFigurinhas.length > 0 ? (
           <button className="secondary-button collapse-countries-button" onClick={toggleAllCountries} type="button">
-            {collapsedCountries.size === groupedFigurinhas.length ? "Expandir países" : "Recolher países"}
+            {groupedFigurinhas.every(({ country }) => collapsedCountries.has(country))
+              ? "Expandir países"
+              : "Recolher países"}
           </button>
         ) : null}
       </section>
