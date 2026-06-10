@@ -4,10 +4,11 @@ import { formatCurrency } from "../utils/whatsapp";
 
 type FigurinhaListaProps = {
   figurinhas: Figurinha[];
+  pendingStockIds: Set<string>;
   onAddToCart: (figurinha: Figurinha) => void;
 };
 
-export function FigurinhaLista({ figurinhas, onAddToCart }: FigurinhaListaProps) {
+export function FigurinhaLista({ figurinhas, pendingStockIds, onAddToCart }: FigurinhaListaProps) {
   return (
     <section className="sticker-list" aria-label="Lista compacta de figurinhas">
       <div className="sticker-list-header" aria-hidden="true">
@@ -22,6 +23,7 @@ export function FigurinhaLista({ figurinhas, onAddToCart }: FigurinhaListaProps)
 
       {figurinhas.map((figurinha) => {
         const isAvailable = figurinha.disponivel && figurinha.quantidade > 0;
+        const isPending = pendingStockIds.has(figurinha.id);
         const title = figurinha.nome || figurinha.numero;
 
         return (
@@ -36,7 +38,7 @@ export function FigurinhaLista({ figurinhas, onAddToCart }: FigurinhaListaProps)
             </span>
             <button
               className="primary-button compact-action"
-              disabled={!isAvailable}
+              disabled={!isAvailable || isPending}
               onClick={() => onAddToCart(figurinha)}
               type="button"
             >

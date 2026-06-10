@@ -8,6 +8,7 @@ type GrupoPaisFigurinhasProps = {
   expanded: boolean;
   figurinhas: Figurinha[];
   nome: string;
+  pendingStockIds: Set<string>;
   onAddToCart: (figurinha: Figurinha) => void;
   onToggle: () => void;
 };
@@ -17,6 +18,7 @@ export function GrupoPaisFigurinhas({
   expanded,
   figurinhas,
   nome,
+  pendingStockIds,
   onAddToCart,
   onToggle,
 }: GrupoPaisFigurinhasProps) {
@@ -39,6 +41,7 @@ export function GrupoPaisFigurinhas({
         <div className="country-stickers">
           {figurinhas.map((figurinha) => {
             const isAvailable = figurinha.disponivel && figurinha.quantidade > 0;
+            const isPending = pendingStockIds.has(figurinha.id);
             const title = figurinha.nome || figurinha.numero;
 
             return (
@@ -53,7 +56,7 @@ export function GrupoPaisFigurinhas({
                 </div>
                 <button
                   className="primary-button compact-action"
-                  disabled={!isAvailable}
+                  disabled={!isAvailable || isPending}
                   onClick={() => onAddToCart(figurinha)}
                   type="button"
                 >

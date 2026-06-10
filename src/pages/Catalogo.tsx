@@ -11,6 +11,7 @@ import logoUrl from "./logo.png";
 type CatalogoProps = {
   figurinhas: Figurinha[];
   notice: string;
+  pendingStockIds: Set<string>;
   onAddToCart: (figurinha: Figurinha) => void;
 };
 
@@ -26,7 +27,7 @@ function getCountryColor(country: string) {
   return COUNTRY_COLORS[total % COUNTRY_COLORS.length];
 }
 
-export function Catalogo({ figurinhas, notice, onAddToCart }: CatalogoProps) {
+export function Catalogo({ figurinhas, notice, pendingStockIds, onAddToCart }: CatalogoProps) {
   const [busca, setBusca] = useState("");
   const [pais, setPais] = useState("");
   const [categoria, setCategoria] = useState("");
@@ -111,7 +112,13 @@ export function Catalogo({ figurinhas, notice, onAddToCart }: CatalogoProps) {
     }
 
     if (viewMode === "lista") {
-      return <FigurinhaLista figurinhas={filteredFigurinhas} onAddToCart={onAddToCart} />;
+      return (
+        <FigurinhaLista
+          figurinhas={filteredFigurinhas}
+          pendingStockIds={pendingStockIds}
+          onAddToCart={onAddToCart}
+        />
+      );
     }
 
     if (viewMode === "pais") {
@@ -124,6 +131,7 @@ export function Catalogo({ figurinhas, notice, onAddToCart }: CatalogoProps) {
               figurinhas={items}
               key={country}
               nome={country}
+              pendingStockIds={pendingStockIds}
               onAddToCart={onAddToCart}
               onToggle={() => toggleCountry(country)}
             />
@@ -135,7 +143,12 @@ export function Catalogo({ figurinhas, notice, onAddToCart }: CatalogoProps) {
     return (
       <section className="catalog-grid" aria-label="Lista de figurinhas">
         {filteredFigurinhas.map((figurinha) => (
-          <FigurinhaCard key={figurinha.id} figurinha={figurinha} onAddToCart={onAddToCart} />
+          <FigurinhaCard
+            key={figurinha.id}
+            figurinha={figurinha}
+            isPending={pendingStockIds.has(figurinha.id)}
+            onAddToCart={onAddToCart}
+          />
         ))}
       </section>
     );

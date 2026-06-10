@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Header } from "./components/Header";
 import { Carrinho } from "./components/Carrinho";
 import { Catalogo } from "./pages/Catalogo";
@@ -20,6 +20,8 @@ export default function App() {
   const [configuracoes, setConfiguracoes] = useConfiguracoesState();
   const [path, setPath] = useState(getCurrentPath);
   const [notice, setNotice] = useState("");
+  const [pendingStockIds, setPendingStockIds] = useState<Set<string>>(() => new Set());
+  const pendingStockIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (window.location.search.includes("resetLocal=1")) {
@@ -112,30 +114,53 @@ export default function App() {
     updateStockLocal(figurinhaId, amount);
   }
 
+  function markStockPending(figurinhaId: string) {
+    pendingStockIdsRef.current.add(figurinhaId);
+    setPendingStockIds(new Set(pendingStockIdsRef.current));
+  }
+
+  function clearStockPending(figurinhaId: string) {
+    pendingStockIdsRef.current.delete(figurinhaId);
+    setPendingStockIds(new Set(pendingStockIdsRef.current));
+  }
+
   async function addToCart(figurinha: Figurinha) {
+    if (pendingStockIdsRef.current.has(figurinha.id)) return;
+
     if (figurinha.quantidade <= 0) {
       setNotice(`${figurinha.numero} está esgotada.`);
       return;
     }
 
-    const updated = await reserveStock(figurinha, 1);
-    if (!updated) {
-      setNotice(`${figurinha.numero} acabou de esgotar.`);
-      return;
+    markStockPending(figurinha.id);
+
+    try {
+      const updated = await reserveStock(figurinha, 1);
+      if (!updated) {
+        setNotice(`${figurinha.numero} acabou de esgotar.`);
+        return;
+      }
+
+      setNotice(`${figurinha.numero} adicionada ao carrinho.`);
+      setCart((current) => {
+        const existing = current.find((item) => item.figurinhaId === figurinha.id);
+        if (!existing) return [{ figurinhaId: figurinha.id, quantidade: 1 }, ...current];
+
+        return current.map((item) =>
+          item.figurinhaId === figurinha.id ? { ...item, quantidade: item.quantidade + 1 } : item,
+        );
+      });
+    } catch (error) {
+      console.error("Erro ao reservar estoque", error);
+      setNotice("Não foi possível adicionar a figurinha agora. Tente novamente.");
+    } finally {
+      clearStockPending(figurinha.id);
     }
-
-    setNotice(`${figurinha.numero} adicionada ao carrinho.`);
-    setCart((current) => {
-      const existing = current.find((item) => item.figurinhaId === figurinha.id);
-      if (!existing) return [{ figurinhaId: figurinha.id, quantidade: 1 }, ...current];
-
-      return current.map((item) =>
-        item.figurinhaId === figurinha.id ? { ...item, quantidade: item.quantidade + 1 } : item,
-      );
-    });
   }
 
   async function updateQuantity(figurinhaId: string, quantity: number) {
+    if (pendingStockIdsRef.current.has(figurinhaId)) return;
+
     const figurinha = figurinhas.find((item) => item.id === figurinhaId);
     if (!figurinha) return;
 
@@ -153,29 +178,51 @@ export default function App() {
       return;
     }
 
-    if (difference > 0) {
-      const updated = await reserveStock(figurinha, difference);
-      if (!updated) {
-        setNotice(`${figurinha.numero} não possui estoque suficiente.`);
-        return;
-      }
-    } else if (difference < 0) {
-      await releaseStock(figurinhaId, Math.abs(difference));
-    }
+    markStockPending(figurinhaId);
 
-    setNotice("");
-    setCart((current) =>
-      current.map((item) =>
-        item.figurinhaId === figurinhaId ? { ...item, quantidade: quantity } : item,
-      ),
-    );
+    try {
+      if (difference > 0) {
+        const updated = await reserveStock(figurinha, difference);
+        if (!updated) {
+          setNotice(`${figurinha.numero} não possui estoque suficiente.`);
+          return;
+        }
+      } else if (difference < 0) {
+        await releaseStock(figurinhaId, Math.abs(difference));
+      }
+
+      setNotice("");
+      setCart((current) =>
+        current.map((item) =>
+          item.figurinhaId === figurinhaId ? { ...item, quantidade: quantity } : item,
+        ),
+      );
+    } catch (error) {
+      console.error("Erro ao atualizar quantidade", error);
+      setNotice("Não foi possível atualizar o carrinho agora. Tente novamente.");
+    } finally {
+      clearStockPending(figurinhaId);
+    }
   }
 
   async function removeFromCart(figurinhaId: string) {
+    if (pendingStockIdsRef.current.has(figurinhaId)) return;
+
     const cartItem = cart.find((item) => item.figurinhaId === figurinhaId);
-    if (cartItem) await releaseStock(figurinhaId, cartItem.quantidade);
-    setNotice("");
-    setCart((current) => current.filter((item) => item.figurinhaId !== figurinhaId));
+    if (!cartItem) return;
+
+    markStockPending(figurinhaId);
+
+    try {
+      await releaseStock(figurinhaId, cartItem.quantidade);
+      setNotice("");
+      setCart((current) => current.filter((item) => item.figurinhaId !== figurinhaId));
+    } catch (error) {
+      console.error("Erro ao remover item do carrinho", error);
+      setNotice("Não foi possível remover o item agora. Tente novamente.");
+    } finally {
+      clearStockPending(figurinhaId);
+    }
   }
 
   return (
@@ -194,12 +241,18 @@ export default function App() {
           figurinhas={figurinhas}
           notice={notice}
           whatsapp={configuracoes.whatsapp}
+          pendingStockIds={pendingStockIds}
           setNotice={setNotice}
           updateQuantity={updateQuantity}
           removeFromCart={removeFromCart}
         />
       ) : (
-        <Catalogo figurinhas={figurinhas} notice={notice} onAddToCart={addToCart} />
+        <Catalogo
+          figurinhas={figurinhas}
+          notice={notice}
+          pendingStockIds={pendingStockIds}
+          onAddToCart={addToCart}
+        />
       )}
     </>
   );

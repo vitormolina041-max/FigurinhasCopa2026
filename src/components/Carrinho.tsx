@@ -7,6 +7,7 @@ type CarrinhoProps = {
   figurinhas: Figurinha[];
   notice: string;
   whatsapp: string;
+  pendingStockIds: Set<string>;
   setNotice: (value: string) => void;
   updateQuantity: (figurinhaId: string, quantity: number) => void;
   removeFromCart: (figurinhaId: string) => void;
@@ -17,6 +18,7 @@ export function Carrinho({
   figurinhas,
   notice,
   whatsapp,
+  pendingStockIds,
   setNotice,
   updateQuantity,
   removeFromCart,
@@ -62,45 +64,52 @@ export function Carrinho({
       ) : (
         <section className="cart-layout">
           <div className="cart-list">
-            {detailedItems.map(({ item, figurinha }) => (
-              <article className="cart-item" key={figurinha.id}>
-                <div>
-                  <p className="sticker-number">{figurinha.numero}</p>
-                  <h2>{figurinha.nome || figurinha.numero}</h2>
-                  <p>
-                    {figurinha.pais} · {figurinha.categoria} · Estoque: {figurinha.quantidade}
-                  </p>
-                </div>
+            {detailedItems.map(({ item, figurinha }) => {
+              const isPending = pendingStockIds.has(figurinha.id);
 
-                <div className="quantity-controls">
-                  <button
-                    aria-label="Diminuir quantidade"
-                    onClick={() => updateQuantity(figurinha.id, item.quantidade - 1)}
-                    type="button"
-                  >
-                    <Minus size={16} aria-hidden="true" />
-                  </button>
-                  <span>{item.quantidade}</span>
-                  <button
-                    aria-label="Aumentar quantidade"
-                    onClick={() => updateQuantity(figurinha.id, item.quantidade + 1)}
-                    type="button"
-                  >
-                    <Plus size={16} aria-hidden="true" />
-                  </button>
-                  <button
-                    aria-label="Remover item"
-                    className="danger-icon"
-                    onClick={() => removeFromCart(figurinha.id)}
-                    type="button"
-                  >
-                    <Trash2 size={16} aria-hidden="true" />
-                  </button>
-                </div>
+              return (
+                <article className="cart-item" key={figurinha.id}>
+                  <div>
+                    <p className="sticker-number">{figurinha.numero}</p>
+                    <h2>{figurinha.nome || figurinha.numero}</h2>
+                    <p>
+                      {figurinha.pais} · {figurinha.categoria} · Estoque: {figurinha.quantidade}
+                    </p>
+                  </div>
 
-                <strong>{formatCurrency(figurinha.preco * item.quantidade)}</strong>
-              </article>
-            ))}
+                  <div className="quantity-controls">
+                    <button
+                      aria-label="Diminuir quantidade"
+                      disabled={isPending}
+                      onClick={() => updateQuantity(figurinha.id, item.quantidade - 1)}
+                      type="button"
+                    >
+                      <Minus size={16} aria-hidden="true" />
+                    </button>
+                    <span>{item.quantidade}</span>
+                    <button
+                      aria-label="Aumentar quantidade"
+                      disabled={isPending}
+                      onClick={() => updateQuantity(figurinha.id, item.quantidade + 1)}
+                      type="button"
+                    >
+                      <Plus size={16} aria-hidden="true" />
+                    </button>
+                    <button
+                      aria-label="Remover item"
+                      className="danger-icon"
+                      disabled={isPending}
+                      onClick={() => removeFromCart(figurinha.id)}
+                      type="button"
+                    >
+                      <Trash2 size={16} aria-hidden="true" />
+                    </button>
+                  </div>
+
+                  <strong>{formatCurrency(figurinha.preco * item.quantidade)}</strong>
+                </article>
+              );
+            })}
           </div>
 
           <aside className="cart-summary">

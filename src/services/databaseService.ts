@@ -105,6 +105,18 @@ export const databaseService = {
     if (deleteError) throw deleteError;
   },
 
+  async upsertFigurinhas(figurinhas: Figurinha[]) {
+    const client = ensureSupabase();
+    const normalized = normalizeFigurinhas(figurinhas);
+    if (normalized.length === 0) return;
+
+    const { error } = await client.from("figurinhas").upsert(normalized.map(toFigurinhaRow), {
+      onConflict: "id",
+    });
+
+    if (error) throw error;
+  },
+
   async deleteFigurinha(id: string) {
     const client = ensureSupabase();
     const { error } = await client.from("figurinhas").delete().eq("id", id);

@@ -12,18 +12,45 @@ export const defaultConfiguracoes: ConfiguracoesSistema = {
   nomeSite: "Figurinhas da Copa",
 };
 
-export function normalizeFigurinha(figurinha: Figurinha): Figurinha {
-  const quantidade = Math.max(0, Number(figurinha.quantidade) || 0);
+export function normalizeFigurinha(figurinha: Partial<Figurinha> | null | undefined): Figurinha {
+  const source = figurinha && typeof figurinha === "object" ? figurinha : {};
+  const quantidade = Math.max(0, Number(source.quantidade) || 0);
   return {
-    ...figurinha,
-    preco: Math.max(0, Number(figurinha.preco) || 0),
+    id: String(source.id || crypto.randomUUID()),
+    numero: String(source.numero ?? "").trim(),
+    nome: String(source.nome ?? "").trim(),
+    pais: String(source.pais ?? "").trim(),
+    categoria: String(source.categoria ?? "").trim(),
+    imagemUrl: String(source.imagemUrl ?? "").trim(),
+    preco: Math.max(0, Number(source.preco) || 0),
     quantidade,
     disponivel: quantidade > 0,
   };
 }
 
-export function normalizeFigurinhas(figurinhas: Figurinha[]): Figurinha[] {
-  return figurinhas.map(normalizeFigurinha);
+export function normalizeFigurinhas(figurinhas: unknown): Figurinha[] {
+  return Array.isArray(figurinhas)
+    ? figurinhas
+        .map((figurinha) => normalizeFigurinha(figurinha as Partial<Figurinha>))
+        .filter((figurinha) => figurinha.id && figurinha.numero)
+    : [];
+}
+
+function normalizeCart(items: unknown): CartItem[] {
+  if (!Array.isArray(items)) return [];
+
+  const byFigurinhaId = new Map<string, number>();
+  items.forEach((item) => {
+    const figurinhaId = String((item as Partial<CartItem> | null)?.figurinhaId ?? "");
+    const quantidade = Math.max(0, Math.floor(Number((item as Partial<CartItem> | null)?.quantidade) || 0));
+    if (!figurinhaId || quantidade <= 0) return;
+    byFigurinhaId.set(figurinhaId, (byFigurinhaId.get(figurinhaId) ?? 0) + quantidade);
+  });
+
+  return Array.from(byFigurinhaId.entries()).map(([figurinhaId, quantidade]) => ({
+    figurinhaId,
+    quantidade,
+  }));
 }
 
 function readJson<T>(key: string, fallback: T): T {
@@ -44,7 +71,7 @@ function writeJson<T>(key: string, value: T) {
 export const storageService = {
   getFigurinhas(): Figurinha[] {
     const saved = readJson<Figurinha[] | null>(FIGURINHAS_KEY, null);
-    if (saved) return normalizeFigurinhas(saved);
+    if (Array.isArray(saved)) return normalizeFigurinhas(saved);
 
     const normalizedInitial = normalizeFigurinhas(initialFigurinhas);
     writeJson(FIGURINHAS_KEY, normalizedInitial);
@@ -56,11 +83,12 @@ export const storageService = {
   },
 
   getCart(): CartItem[] {
-    return readJson<CartItem[]>(CART_KEY, []);
+    const saved = readJson<CartItem[]>(CART_KEY, []);
+    return normalizeCart(saved);
   },
 
   saveCart(items: CartItem[]) {
-    writeJson(CART_KEY, items);
+    writeJson(CART_KEY, normalizeCart(items));
   },
 
   clearCart() {
@@ -71,7 +99,7 @@ export const storageService = {
     const saved = readJson<ConfiguracoesSistema | null>(CONFIG_KEY, null);
     return {
       ...defaultConfiguracoes,
-      ...saved,
+      ...(saved && typeof saved === "object" ? saved : {}),
     };
   },
 

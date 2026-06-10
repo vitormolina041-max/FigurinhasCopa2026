@@ -1,6 +1,7 @@
 import { FormEvent, useState } from "react";
 import { Save } from "lucide-react";
 import type { ConfiguracoesSistema } from "../types/ConfiguracoesSistema";
+import { databaseService } from "../services/databaseService";
 
 type AdminConfiguracoesProps = {
   configuracoes: ConfiguracoesSistema;
@@ -15,7 +16,7 @@ export function AdminConfiguracoes({
 }: AdminConfiguracoesProps) {
   const [form, setForm] = useState(configuracoes);
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const whatsapp = form.whatsapp.replace(/\D/g, "");
     const senhaAdmin = form.senhaAdmin.trim();
@@ -36,9 +37,19 @@ export function AdminConfiguracoes({
       return;
     }
 
-    setConfiguracoes({ whatsapp, senhaAdmin, nomeSite });
-    setForm({ whatsapp, senhaAdmin, nomeSite });
-    onMessage("Configurações salvas com sucesso.");
+    const nextConfiguracoes = { whatsapp, senhaAdmin, nomeSite };
+
+    try {
+      if (databaseService.isEnabled) {
+        await databaseService.saveConfiguracoes(nextConfiguracoes);
+      }
+      setConfiguracoes(nextConfiguracoes);
+      setForm(nextConfiguracoes);
+      onMessage("Configurações salvas com sucesso.");
+    } catch (error) {
+      console.error("Erro ao salvar configurações", error);
+      onMessage(error instanceof Error ? error.message : "Não foi possível salvar as configurações.");
+    }
   }
 
   return (

@@ -37,11 +37,6 @@ export function useFigurinhasState() {
     if (!databaseService.isEnabled) {
       storageService.saveFigurinhas(figurinhas);
     }
-    if (databaseService.isEnabled) {
-      databaseService.saveFigurinhas(figurinhas).catch((error) => {
-        console.error("Erro ao salvar figurinhas no Supabase", error);
-      });
-    }
   }, [figurinhas, remoteReady]);
 
   return [figurinhas, setFigurinhas] as const;
@@ -87,11 +82,6 @@ export function useConfiguracoesState() {
   useEffect(() => {
     if (!remoteReady) return;
     storageService.saveConfiguracoes(configuracoes);
-    if (databaseService.isEnabled) {
-      databaseService.saveConfiguracoes(configuracoes).catch((error) => {
-        console.error("Erro ao salvar configurações no Supabase", error);
-      });
-    }
   }, [configuracoes, remoteReady]);
 
   return [configuracoes, setConfiguracoes] as const;

@@ -13,6 +13,13 @@ type ExcelRow = {
   disponivel?: boolean | string;
 };
 
+export type ImportFigurinhasResult = {
+  figurinhas: Figurinha[];
+  alteradas: Figurinha[];
+  criadas: number;
+  atualizadas: number;
+};
+
 const COLUMNS = ["numero", "nome", "pais", "categoria", "preco", "quantidade", "imagemUrl", "disponivel"];
 
 function downloadWorkbook(workbook: XLSX.WorkBook, fileName: string) {
@@ -60,10 +67,27 @@ function optionalText(value: unknown) {
   return String(value ?? "").trim();
 }
 
+function parseNumber(value: unknown) {
+  if (typeof value === "number") return value;
+  const raw = String(value ?? "").trim();
+  const normalized =
+    raw.includes(",") && raw.includes(".") ? raw.replace(/\./g, "").replace(",", ".") : raw.replace(",", ".");
+
+  return Number(normalized);
+}
+
 function requiredNumber(value: unknown, field: string, rowNumber: number) {
-  const number = Number(value);
+  const number = parseNumber(value);
   if (!Number.isFinite(number) || number < 0) {
     throw new Error(`Linha ${rowNumber}: campo ${field} deve ser um número maior ou igual a zero.`);
+  }
+  return number;
+}
+
+function requiredInteger(value: unknown, field: string, rowNumber: number) {
+  const number = requiredNumber(value, field, rowNumber);
+  if (!Number.isInteger(number)) {
+    throw new Error(`Linha ${rowNumber}: campo ${field} deve ser um número inteiro.`);
   }
   return number;
 }
@@ -100,38 +124,76 @@ export const excelService = {
     const rows = XLSX.utils.sheet_to_json<ExcelRow>(workbook.Sheets[firstSheet], { defval: "" });
     if (rows.length === 0) throw new Error("A planilha está vazia.");
 
-    const imported = rows.map((row, index) => {
-      const rowNumber = index + 2;
-      const quantidade = requiredNumber(row.quantidade, "quantidade", rowNumber);
-      const disponivel = parseDisponivel(row.disponivel, quantidade);
+    const errors: string[] = [];
+    const imported = rows
+      .map((row, index) => {
+        try {
+          const rowNumber = index + 2;
+          const quantidade = requiredInteger(row.quantidade, "quantidade", rowNumber);
+          const disponivel = parseDisponivel(row.disponivel, quantidade);
 
-      return normalizeFigurinha({
-        id: "",
-        numero: requiredText(row.numero, "numero", rowNumber),
-        nome: optionalText(row.nome),
-        pais: requiredText(row.pais, "pais", rowNumber),
-        categoria: requiredText(row.categoria, "categoria", rowNumber),
-        preco: requiredNumber(row.preco, "preco", rowNumber),
-        quantidade,
-        imagemUrl: String(row.imagemUrl ?? "").trim(),
-        disponivel,
-      });
+          return normalizeFigurinha({
+            id: "",
+            numero: requiredText(row.numero, "numero", rowNumber),
+            nome: optionalText(row.nome),
+            pais: requiredText(row.pais, "pais", rowNumber),
+            categoria: requiredText(row.categoria, "categoria", rowNumber),
+            preco: requiredNumber(row.preco, "preco", rowNumber),
+            quantidade,
+            imagemUrl: String(row.imagemUrl ?? "").trim(),
+            disponivel,
+          });
+        } catch (error) {
+          errors.push(error instanceof Error ? error.message : `Linha ${index + 2}: erro desconhecido.`);
+          return null;
+        }
+      })
+      .filter((figurinha): figurinha is Figurinha => Boolean(figurinha));
+
+    const repeatedNumbers = new Set<string>();
+    const seenNumbers = new Set<string>();
+    imported.forEach((figurinha) => {
+      const normalizedNumber = figurinha.numero.toLowerCase();
+      if (seenNumbers.has(normalizedNumber)) repeatedNumbers.add(figurinha.numero);
+      seenNumbers.add(normalizedNumber);
     });
+
+    repeatedNumbers.forEach((numero) => {
+      errors.push(`Número duplicado na planilha: ${numero}.`);
+    });
+
+    if (errors.length > 0) {
+      throw new Error(`A planilha possui erros:\n${errors.slice(0, 8).join("\n")}`);
+    }
 
     const byNumber = new Map(currentFigurinhas.map((figurinha) => [figurinha.numero.toLowerCase(), figurinha]));
     const next = [...currentFigurinhas];
+    const alteradas: Figurinha[] = [];
+    let criadas = 0;
+    let atualizadas = 0;
 
     imported.forEach((figurinha) => {
       const existing = byNumber.get(figurinha.numero.toLowerCase());
       if (existing) {
         const index = next.findIndex((item) => item.id === existing.id);
-        next[index] = { ...figurinha, id: existing.id };
+        const updatedFigurinha = { ...figurinha, id: existing.id };
+        next[index] = updatedFigurinha;
+        alteradas.push(updatedFigurinha);
+        atualizadas += 1;
         return;
       }
 
-      next.unshift({ ...figurinha, id: crypto.randomUUID() });
+      const createdFigurinha = { ...figurinha, id: crypto.randomUUID() };
+      next.unshift(createdFigurinha);
+      alteradas.push(createdFigurinha);
+      criadas += 1;
     });
 
-    return next;
+    return {
+      figurinhas: next,
+      alteradas,
+      criadas,
+      atualizadas,
+    };
   },
 };

@@ -1,22 +1,30 @@
+import { useEffect, useState } from "react";
 import { Flag, Plus, ShieldCheck, Trophy } from "lucide-react";
 import type { Figurinha } from "../types/Figurinha";
 import { formatCurrency } from "../utils/whatsapp";
 
 type FigurinhaCardProps = {
   figurinha: Figurinha;
+  isPending: boolean;
   onAddToCart: (figurinha: Figurinha) => void;
 };
 
-export function FigurinhaCard({ figurinha, onAddToCart }: FigurinhaCardProps) {
+export function FigurinhaCard({ figurinha, isPending, onAddToCart }: FigurinhaCardProps) {
+  const [imageFailed, setImageFailed] = useState(false);
   const isAvailable = figurinha.disponivel && figurinha.quantidade > 0;
   const title = figurinha.nome || figurinha.numero;
   const pais = figurinha.pais.trim() || "Sem país informado";
+  const showImage = Boolean(figurinha.imagemUrl) && !imageFailed;
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [figurinha.imagemUrl]);
 
   return (
     <article className={isAvailable ? "sticker-card" : "sticker-card unavailable"}>
       <div className="sticker-image" aria-label={`Imagem da figurinha ${title}`}>
-        {figurinha.imagemUrl ? (
-          <img src={figurinha.imagemUrl} alt={title} />
+        {showImage ? (
+          <img src={figurinha.imagemUrl} alt={title} onError={() => setImageFailed(true)} />
         ) : (
           <div className="sticker-placeholder">
             <Trophy size={34} aria-hidden="true" />
@@ -53,7 +61,7 @@ export function FigurinhaCard({ figurinha, onAddToCart }: FigurinhaCardProps) {
           <button
             aria-label={isAvailable ? `Adicionar ${title} ao carrinho` : `${title} esgotada`}
             className="primary-button card-cart-button"
-            disabled={!isAvailable}
+            disabled={!isAvailable || isPending}
             onClick={() => onAddToCart(figurinha)}
             type="button"
           >

@@ -1,6 +1,7 @@
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 import { Download, Edit3, FileSpreadsheet, Plus, Search, Trash2, Upload } from "lucide-react";
 import type { Figurinha } from "../types/Figurinha";
+import { databaseService } from "../services/databaseService";
 import { excelService } from "../services/excelService";
 import { normalizeFigurinha } from "../services/storageService";
 import { formatCurrency } from "../utils/whatsapp";
@@ -55,7 +56,41 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
     setEditingId(null);
   }
 
-  function handleSubmit(event: FormEvent) {
+  async function persistUpsertFigurinhas(
+    nextFigurinhas: Figurinha[],
+    changedFigurinhas: Figurinha[],
+    successMessage: string,
+  ) {
+    try {
+      if (databaseService.isEnabled) {
+        await databaseService.upsertFigurinhas(changedFigurinhas);
+      }
+      setFigurinhas(nextFigurinhas);
+      onMessage(successMessage);
+      return true;
+    } catch (error) {
+      console.error("Erro ao salvar figurinhas", error);
+      onMessage(error instanceof Error ? error.message : "Não foi possível salvar as figurinhas.");
+      return false;
+    }
+  }
+
+  async function persistDeleteFigurinha(nextFigurinhas: Figurinha[], figurinhaId: string, successMessage: string) {
+    try {
+      if (databaseService.isEnabled) {
+        await databaseService.deleteFigurinha(figurinhaId);
+      }
+      setFigurinhas(nextFigurinhas);
+      onMessage(successMessage);
+      return true;
+    } catch (error) {
+      console.error("Erro ao excluir figurinha", error);
+      onMessage(error instanceof Error ? error.message : "Não foi possível excluir a figurinha.");
+      return false;
+    }
+  }
+
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
     if (!form.numero.trim() || !form.pais.trim() || !form.categoria.trim()) {
@@ -75,14 +110,24 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
       quantidade: Number(form.quantidade),
     });
 
+    const duplicate = figurinhas.find(
+      (figurinha) =>
+        figurinha.numero.toLowerCase() === normalizedForm.numero.toLowerCase() && figurinha.id !== editingId,
+    );
+
+    if (duplicate) {
+      onMessage(`Já existe uma figurinha cadastrada com o número ${normalizedForm.numero}.`);
+      return;
+    }
+
+    const nextFigurinhas = editingId
+      ? figurinhas.map((figurinha) => (figurinha.id === editingId ? normalizedForm : figurinha))
+      : [normalizedForm, ...figurinhas];
+
     if (editingId) {
-      setFigurinhas((current) =>
-        current.map((figurinha) => (figurinha.id === editingId ? normalizedForm : figurinha)),
-      );
-      onMessage("Figurinha atualizada.");
+      if (!(await persistUpsertFigurinhas(nextFigurinhas, [normalizedForm], "Figurinha atualizada."))) return;
     } else {
-      setFigurinhas((current) => [normalizedForm, ...current]);
-      onMessage("Figurinha cadastrada.");
+      if (!(await persistUpsertFigurinhas(nextFigurinhas, [normalizedForm], "Figurinha cadastrada."))) return;
     }
 
     resetForm();
@@ -103,11 +148,14 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function deleteFigurinha(figurinha: Figurinha) {
+  async function deleteFigurinha(figurinha: Figurinha) {
     if (!window.confirm(`Excluir a figurinha ${figurinha.numero} - ${figurinha.nome}?`)) return;
 
-    setFigurinhas((current) => current.filter((item) => item.id !== figurinha.id));
-    onMessage("Figurinha excluída.");
+    await persistDeleteFigurinha(
+      figurinhas.filter((item) => item.id !== figurinha.id),
+      figurinha.id,
+      "Figurinha excluída.",
+    );
   }
 
   async function importExcel(event: ChangeEvent<HTMLInputElement>) {
@@ -115,9 +163,12 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
     if (!file) return;
 
     try {
-      const nextFigurinhas = await excelService.importFigurinhas(file, figurinhas);
-      setFigurinhas(nextFigurinhas);
-      onMessage("Planilha importada com sucesso.");
+      const result = await excelService.importFigurinhas(file, figurinhas);
+      await persistUpsertFigurinhas(
+        result.figurinhas,
+        result.alteradas,
+        `Planilha importada com sucesso. Criadas: ${result.criadas}. Atualizadas: ${result.atualizadas}.`,
+      );
     } catch (error) {
       onMessage(error instanceof Error ? error.message : "Não foi possível importar a planilha.");
     } finally {
