@@ -1,4 +1,4 @@
-import { Plus, ShieldCheck } from "lucide-react";
+import { Flag, Plus, ShieldCheck, Trophy } from "lucide-react";
 import type { Figurinha } from "../types/Figurinha";
 import { formatCurrency } from "../utils/whatsapp";
 
@@ -10,6 +10,7 @@ type FigurinhaCardProps = {
 export function FigurinhaCard({ figurinha, onAddToCart }: FigurinhaCardProps) {
   const isAvailable = figurinha.disponivel && figurinha.quantidade > 0;
   const title = figurinha.nome || figurinha.numero;
+  const pais = figurinha.pais.trim() || "Sem país informado";
 
   return (
     <article className={isAvailable ? "sticker-card" : "sticker-card unavailable"}>
@@ -17,7 +18,10 @@ export function FigurinhaCard({ figurinha, onAddToCart }: FigurinhaCardProps) {
         {figurinha.imagemUrl ? (
           <img src={figurinha.imagemUrl} alt={title} />
         ) : (
-          <span>{figurinha.numero}</span>
+          <div className="sticker-placeholder">
+            <Trophy size={34} aria-hidden="true" />
+            <span>{figurinha.numero}</span>
+          </div>
         )}
       </div>
 
@@ -33,24 +37,27 @@ export function FigurinhaCard({ figurinha, onAddToCart }: FigurinhaCardProps) {
         </div>
 
         <div className="sticker-meta">
-          <span>{figurinha.pais}</span>
-          <span>{figurinha.categoria}</span>
           <span>
+            <Flag size={14} aria-hidden="true" />
+            {pais}
+          </span>
+          <span>{figurinha.categoria}</span>
+          <span className={isAvailable ? "" : "muted-chip"}>
             <ShieldCheck size={15} aria-hidden="true" />
-            {figurinha.quantidade} em estoque
+            {isAvailable ? `${figurinha.quantidade} em estoque` : "Sem estoque"}
           </span>
         </div>
 
         <div className="sticker-footer">
           <strong>{formatCurrency(figurinha.preco)}</strong>
           <button
-            className="primary-button"
+            aria-label={isAvailable ? `Adicionar ${title} ao carrinho` : `${title} esgotada`}
+            className="primary-button card-cart-button"
             disabled={!isAvailable}
             onClick={() => onAddToCart(figurinha)}
             type="button"
           >
             <Plus size={18} aria-hidden="true" />
-            {isAvailable ? "Adicionar" : "Esgotada"}
           </button>
         </div>
       </div>
