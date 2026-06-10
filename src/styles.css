@@ -733,8 +733,14 @@ select:focus {
 
 .catalog-controls {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 0.65rem;
   margin-bottom: 0.8rem;
+}
+
+.collapse-countries-button {
+  min-height: 2.95rem;
 }
 
 .view-switcher {
@@ -1115,6 +1121,7 @@ select:focus {
 
   .catalog-controls {
     justify-content: stretch;
+    flex-direction: column;
   }
 
   .view-switcher {

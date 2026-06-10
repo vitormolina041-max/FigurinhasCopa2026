@@ -17,9 +17,82 @@ type CatalogoProps = {
 
 const SEM_PAIS = "Sem país informado";
 const COUNTRY_COLORS = ["#2fd06f", "#f0c85a", "#5bbcff", "#ff7e5e", "#b78cff", "#69e2c4", "#ffb357"];
+const OFFICIAL_ALBUM_COUNTRY_ORDER = [
+  "FWC",
+  "MÉXICO",
+  "ÁFRICA DO SUL",
+  "COREIA DO SUL",
+  "REPÚBLICA CHECA",
+  "CANADÁ",
+  "BÓSNIA E HERZEGOVINA",
+  "CATAR",
+  "SUÍÇA",
+  "BRASIL",
+  "MARROCOS",
+  "HAITI",
+  "ESCÓCIA",
+  "ESTADOS UNIDOS",
+  "PARAGUAI",
+  "AUSTRÁLIA",
+  "TURQUIA",
+  "ALEMANHA",
+  "CURAÇAO",
+  "COSTA DO MARFIM",
+  "EQUADOR",
+  "HOLANDA",
+  "JAPÃO",
+  "SUÉCIA",
+  "TUNÍSIA",
+  "BÉLGICA",
+  "EGITO",
+  "IRÃ",
+  "NOVA ZELÂNDIA",
+  "ESPANHA",
+  "CABO VERDE",
+  "ARÁBIA SAUDITA",
+  "URUGUAI",
+  "FRANÇA",
+  "SENEGAL",
+  "IRAQUE",
+  "NORUEGA",
+  "ARGENTINA",
+  "ARGÉLIA",
+  "ÁUSTRIA",
+  "JORDÂNIA",
+  "PORTUGAL",
+  "CONGO DR",
+  "UZBEQUISTÃO",
+  "COLÔMBIA",
+  "INGLATERRA",
+  "CROÁCIA",
+  "GANA",
+  "PANAMÁ",
+];
+const OFFICIAL_ALBUM_COUNTRY_INDEX = new Map(
+  OFFICIAL_ALBUM_COUNTRY_ORDER.map((country, index) => [normalizeCountryName(country), index]),
+);
 
 function getPais(figurinha: Figurinha) {
   return figurinha.pais.trim() || SEM_PAIS;
+}
+
+function normalizeCountryName(country: string) {
+  return country
+    .trim()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toUpperCase();
+}
+
+function comparePais(a: string, b: string) {
+  const firstIndex = OFFICIAL_ALBUM_COUNTRY_INDEX.get(normalizeCountryName(a));
+  const secondIndex = OFFICIAL_ALBUM_COUNTRY_INDEX.get(normalizeCountryName(b));
+
+  if (firstIndex !== undefined && secondIndex !== undefined) return firstIndex - secondIndex;
+  if (firstIndex !== undefined) return -1;
+  if (secondIndex !== undefined) return 1;
+
+  return a.localeCompare(b, "pt-BR");
 }
 
 function getCountryColor(country: string) {
@@ -37,7 +110,7 @@ export function Catalogo({ figurinhas, notice, pendingStockIds, onAddToCart }: C
   const [collapsedCountries, setCollapsedCountries] = useState<Set<string>>(() => new Set());
 
   const paises = useMemo(
-    () => Array.from(new Set(figurinhas.map(getPais))).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    () => Array.from(new Set(figurinhas.map(getPais))).sort(comparePais),
     [figurinhas],
   );
 
@@ -82,7 +155,7 @@ export function Catalogo({ figurinhas, notice, pendingStockIds, onAddToCart }: C
     });
 
     return Array.from(groups.entries())
-      .sort(([a], [b]) => a.localeCompare(b, "pt-BR"))
+      .sort(([a], [b]) => comparePais(a, b))
       .map(([country, items]) => ({
         country,
         items: [...items].sort((a, b) => {
@@ -104,6 +177,15 @@ export function Catalogo({ figurinhas, notice, pendingStockIds, onAddToCart }: C
       }
       return next;
     });
+  }
+
+  function toggleAllCountries() {
+    if (collapsedCountries.size === groupedFigurinhas.length) {
+      setCollapsedCountries(new Set());
+      return;
+    }
+
+    setCollapsedCountries(new Set(groupedFigurinhas.map(({ country }) => country)));
   }
 
   function renderCatalogContent() {
@@ -171,6 +253,11 @@ export function Catalogo({ figurinhas, notice, pendingStockIds, onAddToCart }: C
 
       <section className="catalog-controls">
         <SeletorVisualizacao mode={viewMode} onModeChange={setViewMode} />
+        {viewMode === "pais" && groupedFigurinhas.length > 0 ? (
+          <button className="secondary-button collapse-countries-button" onClick={toggleAllCountries} type="button">
+            {collapsedCountries.size === groupedFigurinhas.length ? "Expandir países" : "Recolher países"}
+          </button>
+        ) : null}
       </section>
 
       <FiltrosCatalogo
