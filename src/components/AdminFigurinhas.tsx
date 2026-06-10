@@ -58,8 +58,8 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
-    if (!form.numero.trim() || !form.nome.trim() || !form.pais.trim() || !form.categoria.trim()) {
-      onMessage("Preencha número, nome, país e categoria.");
+    if (!form.numero.trim() || !form.pais.trim() || !form.categoria.trim()) {
+      onMessage("Preencha número, país e categoria.");
       return;
     }
 
@@ -136,7 +136,7 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
             <input value={form.numero} onChange={(event) => updateForm("numero", event.target.value)} />
           </label>
           <label>
-            Nome
+            Nome (opcional)
             <input value={form.nome} onChange={(event) => updateForm("nome", event.target.value)} />
           </label>
           <label>
@@ -246,7 +246,8 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
               <article className="admin-row" key={figurinha.id}>
                 <div>
                   <strong>
-                    {figurinha.numero} · {figurinha.nome}
+                    {figurinha.numero}
+                    {figurinha.nome ? ` · ${figurinha.nome}` : ""}
                   </strong>
                   <span>
                     {figurinha.pais} · {figurinha.categoria} · {formatCurrency(figurinha.preco)} · Estoque:{" "}

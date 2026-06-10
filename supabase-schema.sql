@@ -1,7 +1,7 @@
 create table if not exists public.figurinhas (
   id uuid primary key default gen_random_uuid(),
   numero text not null unique,
-  nome text not null,
+  nome text not null default '',
   pais text not null,
   categoria text not null,
   preco numeric(10, 2) not null default 0,

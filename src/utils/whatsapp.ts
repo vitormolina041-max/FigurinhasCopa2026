@@ -14,7 +14,7 @@ export function buildWhatsAppUrl(items: CartItem[], figurinhas: Figurinha[], wha
       if (!figurinha) return null;
 
       const subtotal = figurinha.preco * item.quantidade;
-      return `- ${figurinha.nome} | Número: ${figurinha.numero} | País: ${figurinha.pais} | Categoria: ${figurinha.categoria} | Quantidade: ${item.quantidade} | Unitário: ${formatCurrency(figurinha.preco)} | Total: ${formatCurrency(subtotal)}`;
+      return `- ${figurinha.nome || figurinha.numero} | Número: ${figurinha.numero} | País: ${figurinha.pais} | Categoria: ${figurinha.categoria} | Quantidade: ${item.quantidade} | Unitário: ${formatCurrency(figurinha.preco)} | Total: ${formatCurrency(subtotal)}`;
     })
     .filter(Boolean);
 

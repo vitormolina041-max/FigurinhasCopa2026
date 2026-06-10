@@ -9,12 +9,13 @@ type FigurinhaCardProps = {
 
 export function FigurinhaCard({ figurinha, onAddToCart }: FigurinhaCardProps) {
   const isAvailable = figurinha.disponivel && figurinha.quantidade > 0;
+  const title = figurinha.nome || figurinha.numero;
 
   return (
     <article className={isAvailable ? "sticker-card" : "sticker-card unavailable"}>
-      <div className="sticker-image" aria-label={`Imagem da figurinha ${figurinha.nome}`}>
+      <div className="sticker-image" aria-label={`Imagem da figurinha ${title}`}>
         {figurinha.imagemUrl ? (
-          <img src={figurinha.imagemUrl} alt={figurinha.nome} />
+          <img src={figurinha.imagemUrl} alt={title} />
         ) : (
           <span>{figurinha.numero}</span>
         )}
@@ -24,7 +25,7 @@ export function FigurinhaCard({ figurinha, onAddToCart }: FigurinhaCardProps) {
         <div className="sticker-title-row">
           <div>
             <p className="sticker-number">{figurinha.numero}</p>
-            <h2>{figurinha.nome}</h2>
+            <h2>{title}</h2>
           </div>
           <span className={isAvailable ? "status-pill" : "status-pill off"}>
             {isAvailable ? "Disponível" : "Esgotada"}

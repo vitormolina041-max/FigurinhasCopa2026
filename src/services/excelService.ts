@@ -56,6 +56,10 @@ function requiredText(value: unknown, field: string, rowNumber: number) {
   return text;
 }
 
+function optionalText(value: unknown) {
+  return String(value ?? "").trim();
+}
+
 function requiredNumber(value: unknown, field: string, rowNumber: number) {
   const number = Number(value);
   if (!Number.isFinite(number) || number < 0) {
@@ -104,7 +108,7 @@ export const excelService = {
       return normalizeFigurinha({
         id: "",
         numero: requiredText(row.numero, "numero", rowNumber),
-        nome: requiredText(row.nome, "nome", rowNumber),
+        nome: optionalText(row.nome),
         pais: requiredText(row.pais, "pais", rowNumber),
         categoria: requiredText(row.categoria, "categoria", rowNumber),
         preco: requiredNumber(row.preco, "preco", rowNumber),

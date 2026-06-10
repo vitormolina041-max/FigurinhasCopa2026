@@ -66,7 +66,7 @@ export function Carrinho({
               <article className="cart-item" key={figurinha.id}>
                 <div>
                   <p className="sticker-number">{figurinha.numero}</p>
-                  <h2>{figurinha.nome}</h2>
+                  <h2>{figurinha.nome || figurinha.numero}</h2>
                   <p>
                     {figurinha.pais} · {figurinha.categoria} · Estoque: {figurinha.quantidade}
                   </p>
