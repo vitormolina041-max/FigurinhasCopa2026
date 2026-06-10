@@ -680,6 +680,17 @@ select:focus {
   font-size: 0.9rem;
 }
 
+.quick-edit-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(7rem, 9rem));
+  gap: 0.6rem;
+  margin-top: 0.65rem;
+}
+
+.quick-edit-row input {
+  min-height: 2.35rem;
+}
+
 .icon-text {
   min-height: 2.35rem;
   padding: 0 0.7rem;
@@ -1164,6 +1175,10 @@ select:focus {
   .admin-row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .quick-edit-row {
+    grid-template-columns: 1fr;
   }
 
   .cart-item {

@@ -7,29 +7,55 @@ export function formatCurrency(value: number) {
   }).format(value);
 }
 
+function getPais(figurinha: Figurinha) {
+  return figurinha.pais.trim() || "Sem país informado";
+}
+
 export function buildWhatsAppUrl(items: CartItem[], figurinhas: Figurinha[], whatsapp: string) {
-  const lines = items
+  const detailedItems = items
     .map((item) => {
       const figurinha = figurinhas.find((current) => current.id === item.figurinhaId);
       if (!figurinha) return null;
 
-      const subtotal = figurinha.preco * item.quantidade;
-      return `- ${figurinha.nome || figurinha.numero} | Número: ${figurinha.numero} | País: ${figurinha.pais} | Categoria: ${figurinha.categoria} | Quantidade: ${item.quantidade} | Unitário: ${formatCurrency(figurinha.preco)} | Total: ${formatCurrency(subtotal)}`;
+      return {
+        item,
+        figurinha,
+        subtotal: figurinha.preco * item.quantidade,
+      };
     })
-    .filter(Boolean);
+    .filter((entry): entry is { item: CartItem; figurinha: Figurinha; subtotal: number } => Boolean(entry));
 
-  const total = items.reduce((sum, item) => {
-    const figurinha = figurinhas.find((current) => current.id === item.figurinhaId);
-    return sum + (figurinha ? figurinha.preco * item.quantidade : 0);
-  }, 0);
+  const groups = new Map<string, typeof detailedItems>();
+  detailedItems.forEach((entry) => {
+    const pais = getPais(entry.figurinha);
+    groups.set(pais, [...(groups.get(pais) ?? []), entry]);
+  });
 
-  const message = [
+  const total = detailedItems.reduce((sum, entry) => sum + entry.subtotal, 0);
+  const totalItems = detailedItems.reduce((sum, entry) => sum + entry.item.quantidade, 0);
+  const messageLines = [
     "Olá! Quero finalizar este pedido de figurinhas:",
     "",
-    ...lines,
-    "",
+    `Total de itens: ${totalItems}`,
     `Valor total: ${formatCurrency(total)}`,
-  ].join("\n");
+    "",
+    "Itens por país/time:",
+  ];
 
-  return `https://wa.me/${whatsapp}?text=${encodeURIComponent(message)}`;
+  Array.from(groups.entries())
+    .sort(([a], [b]) => a.localeCompare(b, "pt-BR"))
+    .forEach(([pais, entries]) => {
+      const groupTotal = entries.reduce((sum, entry) => sum + entry.subtotal, 0);
+      messageLines.push("", `${pais} - ${formatCurrency(groupTotal)}`);
+
+      entries.forEach(({ item, figurinha, subtotal }) => {
+        messageLines.push(
+          `- ${figurinha.numero} | ${figurinha.nome || "Sem nome"} | ${figurinha.categoria} | Qtd: ${
+            item.quantidade
+          } | Unit.: ${formatCurrency(figurinha.preco)} | Subtotal: ${formatCurrency(subtotal)}`,
+        );
+      });
+    });
+
+  return `https://wa.me/${whatsapp}?text=${encodeURIComponent(messageLines.join("\n"))}`;
 }

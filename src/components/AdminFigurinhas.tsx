@@ -3,6 +3,7 @@ import { Download, Edit3, FileSpreadsheet, Plus, Search, Trash2, Upload } from "
 import type { Figurinha } from "../types/Figurinha";
 import { databaseService } from "../services/databaseService";
 import { excelService } from "../services/excelService";
+import { jsonBackupService } from "../services/jsonBackupService";
 import { normalizeFigurinha } from "../services/storageService";
 import { formatCurrency } from "../utils/whatsapp";
 
@@ -30,6 +31,7 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
   const [editingId, setEditingId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [paisFilter, setPaisFilter] = useState("");
+  const [quickEditValues, setQuickEditValues] = useState<Record<string, { preco: string; quantidade: string }>>({});
 
   const paises = useMemo(
     () => Array.from(new Set(figurinhas.map((item) => item.pais))).sort((a, b) => a.localeCompare(b)),
@@ -158,6 +160,71 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
     );
   }
 
+  async function duplicateFigurinha(figurinha: Figurinha) {
+    const duplicateNumber = `${figurinha.numero}-COPIA`;
+    const nextNumber = figurinhas.some((item) => item.numero.toLowerCase() === duplicateNumber.toLowerCase())
+      ? `${figurinha.numero}-COPIA-${Date.now()}`
+      : duplicateNumber;
+    const duplicated = normalizeFigurinha({
+      ...figurinha,
+      id: crypto.randomUUID(),
+      numero: nextNumber,
+      quantidade: 0,
+    });
+
+    await persistUpsertFigurinhas([duplicated, ...figurinhas], [duplicated], "Figurinha duplicada.");
+  }
+
+  async function quickUpdateFigurinha(figurinha: Figurinha, patch: Partial<Pick<Figurinha, "preco" | "quantidade">>) {
+    const updated = normalizeFigurinha({
+      ...figurinha,
+      ...patch,
+    });
+
+    await persistUpsertFigurinhas(
+      figurinhas.map((item) => (item.id === figurinha.id ? updated : item)),
+      [updated],
+      "Figurinha atualizada.",
+    );
+  }
+
+  function getQuickEditValue(figurinha: Figurinha, field: "preco" | "quantidade") {
+    return quickEditValues[figurinha.id]?.[field] ?? String(figurinha[field]);
+  }
+
+  function setQuickEditValue(figurinhaId: string, field: "preco" | "quantidade", value: string) {
+    setQuickEditValues((current) => ({
+      ...current,
+      [figurinhaId]: {
+        preco: current[figurinhaId]?.preco ?? String(figurinhas.find((item) => item.id === figurinhaId)?.preco ?? 0),
+        quantidade:
+          current[figurinhaId]?.quantidade ??
+          String(figurinhas.find((item) => item.id === figurinhaId)?.quantidade ?? 0),
+        [field]: value,
+      },
+    }));
+  }
+
+  async function commitQuickEdit(figurinha: Figurinha) {
+    const values = quickEditValues[figurinha.id];
+    if (!values) return;
+
+    const preco = Number(values.preco);
+    const quantidade = Number(values.quantidade);
+    if (!Number.isFinite(preco) || preco < 0 || !Number.isInteger(quantidade) || quantidade < 0) {
+      onMessage("Preço deve ser maior ou igual a zero e estoque deve ser inteiro.");
+      return;
+    }
+
+    if (preco === figurinha.preco && quantidade === figurinha.quantidade) return;
+    await quickUpdateFigurinha(figurinha, { preco, quantidade });
+    setQuickEditValues((current) => {
+      const next = { ...current };
+      delete next[figurinha.id];
+      return next;
+    });
+  }
+
   async function importExcel(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -171,6 +238,24 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
       );
     } catch (error) {
       onMessage(error instanceof Error ? error.message : "Não foi possível importar a planilha.");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  async function importJson(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const result = await jsonBackupService.importFigurinhas(file, figurinhas);
+      await persistUpsertFigurinhas(
+        result.figurinhas,
+        result.alteradas,
+        `Backup JSON restaurado. Criadas: ${result.criadas}. Atualizadas: ${result.atualizadas}.`,
+      );
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "Não foi possível restaurar o backup JSON.");
     } finally {
       event.target.value = "";
     }
@@ -265,6 +350,15 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
               Importar Excel
               <input accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" type="file" onChange={importExcel} />
             </label>
+            <button className="secondary-button" onClick={() => jsonBackupService.exportFigurinhas(figurinhas)} type="button">
+              <Download size={18} aria-hidden="true" />
+              Exportar JSON
+            </button>
+            <label className="file-button">
+              <Upload size={18} aria-hidden="true" />
+              Restaurar JSON
+              <input accept=".json,application/json" type="file" onChange={importJson} />
+            </label>
           </div>
         </section>
       </section>
@@ -304,8 +398,41 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
                     {figurinha.pais} · {figurinha.categoria} · {formatCurrency(figurinha.preco)} · Estoque:{" "}
                     {figurinha.quantidade} · {figurinha.quantidade > 0 ? "Disponível" : "Esgotada"}
                   </span>
+                  <div className="quick-edit-row">
+                    <label>
+                      Preço
+                      <input
+                        min="0"
+                        step="0.01"
+                        type="number"
+                        value={getQuickEditValue(figurinha, "preco")}
+                        onBlur={() => commitQuickEdit(figurinha)}
+                        onChange={(event) => setQuickEditValue(figurinha.id, "preco", event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") event.currentTarget.blur();
+                        }}
+                      />
+                    </label>
+                    <label>
+                      Estoque
+                      <input
+                        min="0"
+                        type="number"
+                        value={getQuickEditValue(figurinha, "quantidade")}
+                        onBlur={() => commitQuickEdit(figurinha)}
+                        onChange={(event) => setQuickEditValue(figurinha.id, "quantidade", event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") event.currentTarget.blur();
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
                 <div className="row-actions">
+                  <button className="secondary-button icon-text" onClick={() => duplicateFigurinha(figurinha)} type="button">
+                    <Plus size={16} aria-hidden="true" />
+                    Duplicar
+                  </button>
                   <button className="secondary-button icon-text" onClick={() => startEditing(figurinha)} type="button">
                     <Edit3 size={16} aria-hidden="true" />
                     Editar
