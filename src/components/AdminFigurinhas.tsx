@@ -5,6 +5,7 @@ import { databaseService } from "../services/databaseService";
 import { excelService } from "../services/excelService";
 import { jsonBackupService } from "../services/jsonBackupService";
 import { normalizeFigurinha } from "../services/storageService";
+import { comparePais, sortFigurinhasByAlbum } from "../utils/figurinhaSorting";
 import { formatCurrency } from "../utils/whatsapp";
 
 type AdminFigurinhasProps = {
@@ -34,13 +35,13 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
   const [quickEditValues, setQuickEditValues] = useState<Record<string, { preco: string; quantidade: string }>>({});
 
   const paises = useMemo(
-    () => Array.from(new Set(figurinhas.map((item) => item.pais))).sort((a, b) => a.localeCompare(b)),
+    () => Array.from(new Set(figurinhas.map((item) => item.pais))).sort(comparePais),
     [figurinhas],
   );
 
   const filteredFigurinhas = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    return figurinhas.filter((figurinha) => {
+    return sortFigurinhasByAlbum(figurinhas).filter((figurinha) => {
       const matchesQuery =
         !normalized ||
         figurinha.nome.toLowerCase().includes(normalized) ||
@@ -67,7 +68,7 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
       if (databaseService.isEnabled) {
         await databaseService.upsertFigurinhas(changedFigurinhas);
       }
-      setFigurinhas(nextFigurinhas);
+      setFigurinhas(sortFigurinhasByAlbum(nextFigurinhas));
       onMessage(successMessage);
       return true;
     } catch (error) {
@@ -124,7 +125,7 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
 
     const nextFigurinhas = editingId
       ? figurinhas.map((figurinha) => (figurinha.id === editingId ? normalizedForm : figurinha))
-      : [normalizedForm, ...figurinhas];
+      : sortFigurinhasByAlbum([normalizedForm, ...figurinhas]);
 
     if (editingId) {
       if (!(await persistUpsertFigurinhas(nextFigurinhas, [normalizedForm], "Figurinha atualizada."))) return;
@@ -172,7 +173,7 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
       quantidade: 0,
     });
 
-    await persistUpsertFigurinhas([duplicated, ...figurinhas], [duplicated], "Figurinha duplicada.");
+    await persistUpsertFigurinhas(sortFigurinhasByAlbum([duplicated, ...figurinhas]), [duplicated], "Figurinha duplicada.");
   }
 
   async function quickUpdateFigurinha(figurinha: Figurinha, patch: Partial<Pick<Figurinha, "preco" | "quantidade">>) {
@@ -182,7 +183,7 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
     });
 
     await persistUpsertFigurinhas(
-      figurinhas.map((item) => (item.id === figurinha.id ? updated : item)),
+      sortFigurinhasByAlbum(figurinhas.map((item) => (item.id === figurinha.id ? updated : item))),
       [updated],
       "Figurinha atualizada.",
     );

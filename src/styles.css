@@ -566,17 +566,17 @@ select:focus {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 20rem;
   align-items: start;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
 }
 
 .admin-card {
-  margin-bottom: 1rem;
-  padding: 1rem;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
 }
 
 .admin-card h2 {
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
   color: #fff;
 }
 
@@ -638,8 +638,8 @@ select:focus {
 .admin-toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 14rem;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
 }
 
 .admin-toolbar label {
@@ -659,41 +659,72 @@ select:focus {
 
 .admin-table {
   display: grid;
-  gap: 0.7rem;
+  gap: 0.45rem;
 }
 
 .admin-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 0.85rem;
+  gap: 0.65rem;
+  padding: 0.55rem 0.65rem;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(174, 220, 188, 0.12);
   border-radius: 0.45rem;
 }
 
+.admin-row > div:first-child {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1fr) auto;
+  align-items: center;
+  flex: 1;
+  gap: 0.15rem 0.75rem;
+  min-width: 0;
+}
+
+.admin-row strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #fff;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .admin-row span {
   display: block;
-  margin-top: 0.25rem;
+  min-width: 0;
+  margin-top: 0;
+  overflow: hidden;
   color: #aebfb4;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .quick-edit-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(7rem, 9rem));
-  gap: 0.6rem;
-  margin-top: 0.65rem;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  grid-template-columns: repeat(2, 5.6rem);
+  gap: 0.4rem;
+  margin-top: 0;
+}
+
+.quick-edit-row label {
+  gap: 0.2rem;
+  font-size: 0.72rem;
 }
 
 .quick-edit-row input {
-  min-height: 2.35rem;
+  min-height: 1.9rem;
+  padding: 0 0.45rem;
+  font-size: 0.86rem;
 }
 
 .icon-text {
-  min-height: 2.35rem;
-  padding: 0 0.7rem;
+  min-height: 2rem;
+  padding: 0 0.55rem;
+  font-size: 0.82rem;
 }
 
 .catalog-summary {
@@ -1188,8 +1219,18 @@ select:focus {
     flex-direction: column;
   }
 
+  .admin-row > div:first-child {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-row span {
+    white-space: normal;
+  }
+
   .quick-edit-row {
     grid-template-columns: 1fr;
+    grid-column: auto;
+    grid-row: auto;
   }
 
   .cart-item {

@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import type { Figurinha } from "../types/Figurinha";
+import { sortFigurinhasByAlbum } from "../utils/figurinhaSorting";
 import { normalizeFigurinha } from "./storageService";
 
 type ExcelRow = {
@@ -27,7 +28,7 @@ function downloadWorkbook(workbook: XLSX.WorkBook, fileName: string) {
 }
 
 function toExcelRows(figurinhas: Figurinha[]) {
-  return figurinhas.map((figurinha) => ({
+  return sortFigurinhasByAlbum(figurinhas).map((figurinha) => ({
     numero: figurinha.numero,
     nome: figurinha.nome,
     pais: figurinha.pais,
@@ -190,7 +191,7 @@ export const excelService = {
     });
 
     return {
-      figurinhas: next,
+      figurinhas: sortFigurinhasByAlbum(next),
       alteradas,
       criadas,
       atualizadas,

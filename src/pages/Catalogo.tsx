@@ -7,6 +7,12 @@ import { GrupoPaisFigurinhas } from "../components/GrupoPaisFigurinhas";
 import { HeaderPais } from "../components/HeaderPais";
 import { SeletorVisualizacao, type CatalogViewMode } from "../components/SeletorVisualizacao";
 import type { AvailabilityFilter, Figurinha, SortKey } from "../types/Figurinha";
+import {
+  compareFigurinhaNumero,
+  compareFigurinhasByAlbum,
+  comparePais as comparePaisAlbum,
+  getPais as getPaisAlbum,
+} from "../utils/figurinhaSorting";
 import logoUrl from "./logo.png";
 
 type CatalogoProps = {
@@ -111,7 +117,7 @@ export function Catalogo({ figurinhas, notice, pendingStockIds, onAddToCart }: C
   const [collapsedCountries, setCollapsedCountries] = useState<Set<string>>(() => new Set());
 
   const paises = useMemo(
-    () => Array.from(new Set(figurinhas.map(getPais))).sort(comparePais),
+    () => Array.from(new Set(figurinhas.map(getPaisAlbum))).sort(comparePaisAlbum),
     [figurinhas],
   );
 
@@ -129,7 +135,7 @@ export function Catalogo({ figurinhas, notice, pendingStockIds, onAddToCart }: C
           !normalizedSearch ||
           figurinha.nome.toLowerCase().includes(normalizedSearch) ||
           figurinha.numero.toLowerCase().includes(normalizedSearch);
-        const matchesPais = !pais || getPais(figurinha) === pais;
+        const matchesPais = !pais || getPaisAlbum(figurinha) === pais;
         const matchesCategoria = !categoria || figurinha.categoria === categoria;
         const isAvailable = figurinha.disponivel && figurinha.quantidade > 0;
         const matchesAvailability =
@@ -141,9 +147,13 @@ export function Catalogo({ figurinhas, notice, pendingStockIds, onAddToCart }: C
       })
       .sort((a, b) => {
         if (ordenacao === "preco") return a.preco - b.preco;
-        const first = ordenacao === "pais" ? getPais(a) : String(a[ordenacao]);
-        const second = ordenacao === "pais" ? getPais(b) : String(b[ordenacao]);
-        return first.localeCompare(second, "pt-BR", { numeric: true });
+        if (ordenacao === "pais") {
+          const countryComparison = comparePaisAlbum(getPaisAlbum(a), getPaisAlbum(b));
+          return countryComparison || compareFigurinhaNumero(a, b);
+        }
+        if (ordenacao === "numero") return compareFigurinhasByAlbum(a, b);
+
+        return String(a[ordenacao]).localeCompare(String(b[ordenacao]), "pt-BR", { numeric: true });
       });
   }, [busca, categoria, disponibilidade, figurinhas, ordenacao, pais]);
 
@@ -151,19 +161,20 @@ export function Catalogo({ figurinhas, notice, pendingStockIds, onAddToCart }: C
     const groups = new Map<string, Figurinha[]>();
 
     filteredFigurinhas.forEach((figurinha) => {
-      const key = getPais(figurinha);
+      const key = getPaisAlbum(figurinha);
       groups.set(key, [...(groups.get(key) ?? []), figurinha]);
     });
 
     return Array.from(groups.entries())
-      .sort(([a], [b]) => comparePais(a, b))
+      .sort(([a], [b]) => comparePaisAlbum(a, b))
       .map(([country, items]) => ({
         country,
         items: [...items].sort((a, b) => {
-          const sortKey = ordenacao === "nome" ? "nome" : "numero";
-          return String(a[sortKey] || a.numero).localeCompare(String(b[sortKey] || b.numero), "pt-BR", {
-            numeric: true,
-          });
+          if (ordenacao === "nome") {
+            return String(a.nome || a.numero).localeCompare(String(b.nome || b.numero), "pt-BR", { numeric: true });
+          }
+
+          return compareFigurinhaNumero(a, b);
         }),
       }));
   }, [filteredFigurinhas, ordenacao]);

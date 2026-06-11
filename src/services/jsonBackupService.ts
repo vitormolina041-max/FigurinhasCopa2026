@@ -1,4 +1,5 @@
 import type { Figurinha } from "../types/Figurinha";
+import { sortFigurinhasByAlbum } from "../utils/figurinhaSorting";
 import { normalizeFigurinha, normalizeFigurinhas } from "./storageService";
 
 type BackupFile = {
@@ -74,7 +75,7 @@ export const jsonBackupService = {
     });
 
     return {
-      figurinhas: next,
+      figurinhas: sortFigurinhasByAlbum(next),
       alteradas,
       criadas,
       atualizadas,

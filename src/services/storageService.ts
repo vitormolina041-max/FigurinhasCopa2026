@@ -1,6 +1,7 @@
 import { initialFigurinhas } from "../data/initialFigurinhas";
 import type { CartItem, Figurinha } from "../types/Figurinha";
 import type { ConfiguracoesSistema } from "../types/ConfiguracoesSistema";
+import { sortFigurinhasByAlbum } from "../utils/figurinhaSorting";
 
 const FIGURINHAS_KEY = "figurinhas-da-copa:figurinhas";
 const CART_KEY = "figurinhas-da-copa:carrinho";
@@ -29,11 +30,13 @@ export function normalizeFigurinha(figurinha: Partial<Figurinha> | null | undefi
 }
 
 export function normalizeFigurinhas(figurinhas: unknown): Figurinha[] {
-  return Array.isArray(figurinhas)
-    ? figurinhas
-        .map((figurinha) => normalizeFigurinha(figurinha as Partial<Figurinha>))
-        .filter((figurinha) => figurinha.id && figurinha.numero)
-    : [];
+  if (!Array.isArray(figurinhas)) return [];
+
+  return sortFigurinhasByAlbum(
+    figurinhas
+      .map((figurinha) => normalizeFigurinha(figurinha as Partial<Figurinha>))
+      .filter((figurinha) => figurinha.id && figurinha.numero),
+  );
 }
 
 function normalizeCart(items: unknown): CartItem[] {
