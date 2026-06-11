@@ -1,5 +1,5 @@
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
-import { Download, Edit3, FileSpreadsheet, Plus, Search, Trash2, Upload } from "lucide-react";
+import { Download, Edit3, FileSpreadsheet, PackageX, Plus, Search, Trash2, Upload } from "lucide-react";
 import type { Figurinha } from "../types/Figurinha";
 import { databaseService } from "../services/databaseService";
 import { excelService } from "../services/excelService";
@@ -189,6 +189,22 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
     );
   }
 
+  async function resetAllStock() {
+    const stockedFigurinhas = figurinhas.filter((figurinha) => figurinha.quantidade > 0);
+    if (stockedFigurinhas.length === 0) {
+      onMessage("Todo o estoque já está zerado.");
+      return;
+    }
+
+    if (!window.confirm(`Zerar o estoque de ${stockedFigurinhas.length} figurinhas?`)) return;
+
+    const updatedFigurinhas = figurinhas.map((figurinha) =>
+      figurinha.quantidade > 0 ? normalizeFigurinha({ ...figurinha, quantidade: 0 }) : figurinha,
+    );
+
+    await persistUpsertFigurinhas(updatedFigurinhas, updatedFigurinhas, "Estoque zerado.");
+  }
+
   function getQuickEditValue(figurinha: Figurinha, field: "preco" | "quantidade") {
     return quickEditValues[figurinha.id]?.[field] ?? String(figurinha[field]);
   }
@@ -354,6 +370,10 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
             <button className="secondary-button" onClick={() => jsonBackupService.exportFigurinhas(figurinhas)} type="button">
               <Download size={18} aria-hidden="true" />
               Exportar JSON
+            </button>
+            <button className="danger-button" onClick={resetAllStock} type="button">
+              <PackageX size={18} aria-hidden="true" />
+              Zerar estoque
             </button>
             <label className="file-button">
               <Upload size={18} aria-hidden="true" />

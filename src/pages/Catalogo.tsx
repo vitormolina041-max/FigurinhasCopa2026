@@ -6,7 +6,7 @@ import { FigurinhaLista } from "../components/FigurinhaLista";
 import { GrupoPaisFigurinhas } from "../components/GrupoPaisFigurinhas";
 import { HeaderPais } from "../components/HeaderPais";
 import { SeletorVisualizacao, type CatalogViewMode } from "../components/SeletorVisualizacao";
-import type { AvailabilityFilter, Figurinha, SortKey } from "../types/Figurinha";
+import type { Figurinha, SortKey } from "../types/Figurinha";
 import {
   compareFigurinhaNumero,
   compareFigurinhasByAlbum,
@@ -111,25 +111,29 @@ export function Catalogo({ figurinhas, notice, pendingStockIds, onAddToCart }: C
   const [busca, setBusca] = useState("");
   const [pais, setPais] = useState("");
   const [categoria, setCategoria] = useState("");
-  const [disponibilidade, setDisponibilidade] = useState<AvailabilityFilter>("todas");
   const [ordenacao, setOrdenacao] = useState<SortKey>("numero");
   const [viewMode, setViewMode] = useState<CatalogViewMode>("pais");
   const [collapsedCountries, setCollapsedCountries] = useState<Set<string>>(() => new Set());
 
-  const paises = useMemo(
-    () => Array.from(new Set(figurinhas.map(getPaisAlbum))).sort(comparePaisAlbum),
+  const availableFigurinhas = useMemo(
+    () => figurinhas.filter((figurinha) => figurinha.quantidade > 0),
     [figurinhas],
   );
 
+  const paises = useMemo(
+    () => Array.from(new Set(availableFigurinhas.map(getPaisAlbum))).sort(comparePaisAlbum),
+    [availableFigurinhas],
+  );
+
   const categorias = useMemo(
-    () => Array.from(new Set(figurinhas.map((item) => item.categoria))).sort((a, b) => a.localeCompare(b)),
-    [figurinhas],
+    () => Array.from(new Set(availableFigurinhas.map((item) => item.categoria))).sort((a, b) => a.localeCompare(b)),
+    [availableFigurinhas],
   );
 
   const filteredFigurinhas = useMemo(() => {
     const normalizedSearch = busca.trim().toLowerCase();
 
-    return [...figurinhas]
+    return [...availableFigurinhas]
       .filter((figurinha) => {
         const matchesSearch =
           !normalizedSearch ||
@@ -137,13 +141,8 @@ export function Catalogo({ figurinhas, notice, pendingStockIds, onAddToCart }: C
           figurinha.numero.toLowerCase().includes(normalizedSearch);
         const matchesPais = !pais || getPaisAlbum(figurinha) === pais;
         const matchesCategoria = !categoria || figurinha.categoria === categoria;
-        const isAvailable = figurinha.disponivel && figurinha.quantidade > 0;
-        const matchesAvailability =
-          disponibilidade === "todas" ||
-          (disponibilidade === "disponiveis" && isAvailable) ||
-          (disponibilidade === "esgotadas" && !isAvailable);
 
-        return matchesSearch && matchesPais && matchesCategoria && matchesAvailability;
+        return matchesSearch && matchesPais && matchesCategoria;
       })
       .sort((a, b) => {
         if (ordenacao === "preco") return a.preco - b.preco;
@@ -155,7 +154,7 @@ export function Catalogo({ figurinhas, notice, pendingStockIds, onAddToCart }: C
 
         return String(a[ordenacao]).localeCompare(String(b[ordenacao]), "pt-BR", { numeric: true });
       });
-  }, [busca, categoria, disponibilidade, figurinhas, ordenacao, pais]);
+  }, [availableFigurinhas, busca, categoria, ordenacao, pais]);
 
   const groupedFigurinhas = useMemo(() => {
     const groups = new Map<string, Figurinha[]>();
@@ -286,7 +285,7 @@ export function Catalogo({ figurinhas, notice, pendingStockIds, onAddToCart }: C
         </div>
       </section>
 
-      <CatalogoResumo figurinhas={figurinhas} />
+      <CatalogoResumo figurinhas={availableFigurinhas} />
 
       <section className="catalog-controls">
         <SeletorVisualizacao mode={viewMode} onModeChange={setViewMode} />
@@ -303,14 +302,12 @@ export function Catalogo({ figurinhas, notice, pendingStockIds, onAddToCart }: C
         busca={busca}
         pais={pais}
         categoria={categoria}
-        disponibilidade={disponibilidade}
         ordenacao={ordenacao}
         paises={paises}
         categorias={categorias}
         onBuscaChange={setBusca}
         onPaisChange={setPais}
         onCategoriaChange={setCategoria}
-        onDisponibilidadeChange={setDisponibilidade}
         onOrdenacaoChange={setOrdenacao}
       />
 

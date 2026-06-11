@@ -1,17 +1,15 @@
-import type { AvailabilityFilter, SortKey } from "../types/Figurinha";
+import type { SortKey } from "../types/Figurinha";
 
 type FiltrosCatalogoProps = {
   busca: string;
   pais: string;
   categoria: string;
-  disponibilidade: AvailabilityFilter;
   ordenacao: SortKey;
   paises: string[];
   categorias: string[];
   onBuscaChange: (value: string) => void;
   onPaisChange: (value: string) => void;
   onCategoriaChange: (value: string) => void;
-  onDisponibilidadeChange: (value: AvailabilityFilter) => void;
   onOrdenacaoChange: (value: SortKey) => void;
 };
 
@@ -19,31 +17,29 @@ export function FiltrosCatalogo({
   busca,
   pais,
   categoria,
-  disponibilidade,
   ordenacao,
   paises,
   categorias,
   onBuscaChange,
   onPaisChange,
   onCategoriaChange,
-  onDisponibilidadeChange,
   onOrdenacaoChange,
 }: FiltrosCatalogoProps) {
   return (
     <details className="filters-panel" open>
       <summary>Filtros</summary>
-      <section className="filters" aria-label="Filtros do catálogo">
+      <section className="filters" aria-label="Filtros do cat\u00e1logo">
         <label>
           Busca
           <input
             value={busca}
             onChange={(event) => onBuscaChange(event.target.value)}
-            placeholder="Nome ou número"
+            placeholder="Nome ou n\u00famero"
           />
         </label>
 
         <label>
-          País
+          Pa\u00eds
           <select value={pais} onChange={(event) => onPaisChange(event.target.value)}>
             <option value="">Todos</option>
             {paises.map((item) => (
@@ -67,24 +63,12 @@ export function FiltrosCatalogo({
         </label>
 
         <label>
-          Disponibilidade
-          <select
-            value={disponibilidade}
-            onChange={(event) => onDisponibilidadeChange(event.target.value as AvailabilityFilter)}
-          >
-            <option value="todas">Todas</option>
-            <option value="disponiveis">Disponíveis</option>
-            <option value="esgotadas">Esgotadas</option>
-          </select>
-        </label>
-
-        <label>
           Ordenar por
           <select value={ordenacao} onChange={(event) => onOrdenacaoChange(event.target.value as SortKey)}>
-            <option value="numero">Número</option>
+            <option value="numero">N\u00famero</option>
             <option value="nome">Nome</option>
-            <option value="pais">País</option>
-            <option value="preco">Preço</option>
+            <option value="pais">Pa\u00eds</option>
+            <option value="preco">Pre\u00e7o</option>
           </select>
         </label>
       </section>
