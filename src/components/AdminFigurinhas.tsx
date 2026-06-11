@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, KeyboardEvent, useMemo, useRef, useState } from "react";
 import { Download, Edit3, FileSpreadsheet, PackageX, Plus, Search, Trash2, Upload } from "lucide-react";
 import type { Figurinha } from "../types/Figurinha";
 import { databaseService } from "../services/databaseService";
@@ -33,6 +33,7 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
   const [query, setQuery] = useState("");
   const [paisFilter, setPaisFilter] = useState("");
   const [quickEditValues, setQuickEditValues] = useState<Record<string, { preco: string; quantidade: string }>>({});
+  const skipNextQuickEditBlur = useRef<Set<string>>(new Set());
 
   const paises = useMemo(
     () => Array.from(new Set(figurinhas.map((item) => item.pais))).sort(comparePais),
@@ -242,6 +243,39 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
     });
   }
 
+  function handleQuickEditBlur(figurinha: Figurinha, field: "preco" | "quantidade") {
+    const blurKey = `${figurinha.id}:${field}`;
+    if (skipNextQuickEditBlur.current.has(blurKey)) {
+      skipNextQuickEditBlur.current.delete(blurKey);
+      return;
+    }
+
+    void commitQuickEdit(figurinha);
+  }
+
+  async function handleQuickEditKeyDown(
+    event: KeyboardEvent<HTMLInputElement>,
+    figurinha: Figurinha,
+    field: "preco" | "quantidade",
+    rowIndex: number,
+  ) {
+    if (event.key !== "Enter") return;
+
+    event.preventDefault();
+    await commitQuickEdit(figurinha);
+
+    skipNextQuickEditBlur.current.add(`${figurinha.id}:${field}`);
+
+    const targetField = "quantidade";
+    const targetIndex = field === "preco" ? rowIndex : rowIndex + (event.shiftKey ? -1 : 1);
+    const target = document.querySelector<HTMLInputElement>(
+      `input[data-quick-edit-index="${targetIndex}"][data-quick-edit-field="${targetField}"]`,
+    );
+
+    target?.focus();
+    target?.select();
+  }
+
   async function importExcel(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -408,7 +442,7 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
           <div className="empty-state">Nenhuma figurinha encontrada na administração.</div>
         ) : (
           <div className="admin-table">
-            {filteredFigurinhas.map((figurinha) => (
+            {filteredFigurinhas.map((figurinha, index) => (
               <article className="admin-row" key={figurinha.id}>
                 <div>
                   <strong>
@@ -423,28 +457,30 @@ export function AdminFigurinhas({ figurinhas, setFigurinhas, onMessage }: AdminF
                     <label>
                       Preço
                       <input
+                        data-quick-edit-field="preco"
+                        data-quick-edit-index={index}
                         min="0"
                         step="0.01"
                         type="number"
                         value={getQuickEditValue(figurinha, "preco")}
-                        onBlur={() => commitQuickEdit(figurinha)}
+                        onBlur={() => handleQuickEditBlur(figurinha, "preco")}
                         onChange={(event) => setQuickEditValue(figurinha.id, "preco", event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") event.currentTarget.blur();
-                        }}
+                        onFocus={(event) => event.currentTarget.select()}
+                        onKeyDown={(event) => handleQuickEditKeyDown(event, figurinha, "preco", index)}
                       />
                     </label>
                     <label>
                       Estoque
                       <input
+                        data-quick-edit-field="quantidade"
+                        data-quick-edit-index={index}
                         min="0"
                         type="number"
                         value={getQuickEditValue(figurinha, "quantidade")}
-                        onBlur={() => commitQuickEdit(figurinha)}
+                        onBlur={() => handleQuickEditBlur(figurinha, "quantidade")}
                         onChange={(event) => setQuickEditValue(figurinha.id, "quantidade", event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") event.currentTarget.blur();
-                        }}
+                        onFocus={(event) => event.currentTarget.select()}
+                        onKeyDown={(event) => handleQuickEditKeyDown(event, figurinha, "quantidade", index)}
                       />
                     </label>
                   </div>
